@@ -1,0 +1,12 @@
+targeturi: ""
+alert:
+  check_interval: 10
+  alert_interval: 60
+mail:
+  from: ""
+  to: ""
+  user: ""
+  password: ""
+  subject: "Server is not OK"
+  body: "server is not OK"
+  vendor: Naver

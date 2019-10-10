@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/smtp"
 
-	"oss.navercorp.com/clous/indexer/cmd/alerter/mail"
+	"github.com/jmshin92/alerter/pkgs/mail"
 )
 
 const (

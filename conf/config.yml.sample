@@ -7,6 +7,4 @@ mail:
   to: ""
   user: ""
   password: ""
-  subject: "Server is not OK"
-  body: "server is not OK"
-  vendor: Naver
+  vendor: ""

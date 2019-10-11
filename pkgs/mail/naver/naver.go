@@ -5,6 +5,7 @@ import (
 	"net/smtp"
 
 	"github.com/jmshin92/alerter/pkgs/mail"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -15,20 +16,22 @@ const (
 type NaverMail struct {
 	*mail.MailConf
 
-	Subject string
-	Body string
-
 	boundary string
 }
 
-func NewNaverMail(c *mail.MailConf) *NaverMail {
-	return &NaverMail{
+func NewNaverMail(c *mail.MailConf) (*NaverMail, error) {
+	m := &NaverMail{
 		MailConf: c,
 	}
+	if err := m.Validate(); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
-func (this *NaverMail) Send() error{
+func (this *NaverMail) Send() error {
 	msg := this.Build()
+	logrus.Info(msg)
 	err := smtp.SendMail(Addr,
 		smtp.PlainAuth("", this.From, this.Password, Host),
 		this.From, []string{this.To}, []byte(msg))

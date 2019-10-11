@@ -11,11 +11,17 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type AlertFunc func() error
+type AlertFunc func(string) error
+type RecoverFunc func() error
 type CheckFunc func(string) error
 
-func defaultAlert() error {
-	fmt.Fprintln(os.Stderr, "error alert")
+func defaultAlert(msg string) error {
+	fmt.Fprintln(os.Stderr, msg)
+	return nil
+}
+
+func defaultRecover() error {
+	fmt.Fprintln(os.Stdout, "Server recovered")
 	return nil
 }
 
@@ -26,7 +32,7 @@ func defaultCheck(t string) error {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("status code[%v] is not OK[%v]", resp.StatusCode, http.StatusOK)
+		return fmt.Errorf("Server is not OK. status:[%v] %s", resp.StatusCode, http.StatusText(resp.StatusCode))
 	}
 
 	logrus.Info("Server is OK")
@@ -39,23 +45,32 @@ type AlerterConfig struct {
 }
 
 type Alerter struct {
-	conf   *AlerterConfig
-	target string
-	alert  AlertFunc
-	check  CheckFunc
+	conf        *AlerterConfig
+	target      string
+	alertFunc   AlertFunc
+	recoverFunc RecoverFunc
+	checkFunc   CheckFunc
 
 	waitGroup sync.WaitGroup
 	lock      sync.RWMutex
 	running   bool
 	ctx       context.Context
 	close     func()
+
+	lastAlert *alert
+}
+
+type alert struct {
+	LastTime time.Time
+	Msg      string
 }
 
 func NewAlerter(conf *AlerterConfig) *Alerter {
 	a := &Alerter{
-		conf: conf,
-		alert: defaultAlert,
-		check: defaultCheck,
+		conf:        conf,
+		alertFunc:   defaultAlert,
+		recoverFunc: defaultRecover,
+		checkFunc:   defaultCheck,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -80,7 +95,15 @@ func (a *Alerter) SetAlert(f AlertFunc) *Alerter {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
-	a.alert = f
+	a.alertFunc = f
+	return a
+}
+
+func (a *Alerter) SetRecover(f RecoverFunc) *Alerter {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+
+	a.recoverFunc = f
 	return a
 }
 
@@ -88,12 +111,12 @@ func (a *Alerter) SetCheck(f CheckFunc) *Alerter {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
-	a.check = f
+	a.checkFunc = f
 	return a
 }
 
 func (a *Alerter) validate() error {
-	if a.alert == nil {
+	if a.alertFunc == nil {
 		return fmt.Errorf("alert function is not set")
 	}
 	if len(a.target) == 0 {
@@ -144,12 +167,39 @@ func (a *Alerter) run(runGroup *sync.WaitGroup) {
 		}
 		logrus.Info("Check server")
 
-		err := a.check(a.target)
+		err := a.checkFunc(a.target)
 		if err != nil {
-			logrus.Error("server seems to be not ok")
-			a.alert()
+			a.sendAlert(err.Error())
+		} else {
+			a.sendRecover()
 		}
+	}
+}
 
+func (a *Alerter) sendAlert(msg string) {
+	now := time.Now()
+
+	if a.lastAlert == nil {
+		a.lastAlert = &alert{
+			Msg: msg,
+		}
+	} else {
+		alertPivot := a.lastAlert.LastTime.Add(a.conf.AlertIntervalDuration)
+		if alertPivot.After(now) {
+			logrus.Warn("Skip sending alert during alert interval[%v]. (left: %v)", a.conf.AlertIntervalDuration, alertPivot.Sub(now))
+			return
+		}
+	}
+	logrus.Info("send alert msg: ", msg)
+	a.alertFunc(msg)
+	a.lastAlert.LastTime = now
+}
+
+func (a *Alerter) sendRecover() {
+	if a.lastAlert != nil {
+		a.lastAlert = nil
+		logrus.Info("send recovery msg")
+		a.recoverFunc()
 	}
 }
 

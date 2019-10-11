@@ -10,7 +10,7 @@ const (
 )
 
 var (
-	vendors = map[string]interface{} {
+	vendors = map[string]interface{}{
 		VendorNaver: nil,
 		VendorGmail: nil,
 	}
@@ -34,7 +34,7 @@ type MailConf struct {
 	Body     string `json:"body,omitempty" yaml:"body,omitempty"`
 	User     string `json:"user,omitempty" yaml:"user,omitempty"`
 	Password string `json:"password,omitempty" yaml:"password,omitempty"`
-	Vendor string `json:"vendor,omitempty" yaml:"vendor,omitempty"`
+	Vendor   string `json:"vendor,omitempty" yaml:"vendor,omitempty"`
 }
 
 func (this *MailConf) Validate() error {
@@ -44,6 +44,14 @@ func (this *MailConf) Validate() error {
 
 	if len(this.To) == 0 {
 		return fmt.Errorf("to is required")
+	}
+
+	if len(this.User) == 0 {
+		return fmt.Errorf("user is required")
+	}
+
+	if len(this.Password) == 0 {
+		return fmt.Errorf("password is required")
 	}
 
 	switch this.Vendor {

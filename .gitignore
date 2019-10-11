@@ -1,4 +1,4 @@
 vendor
 alerter
 .idea
-conf/
+conf/*

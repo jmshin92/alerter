@@ -30,12 +30,9 @@ func defaultCheck(t string) error {
 	if err != nil {
 		return err
 	}
-
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("Server is not OK. status:[%v] %s", resp.StatusCode, http.StatusText(resp.StatusCode))
 	}
-
-	logrus.Info("Server is OK")
 	return nil
 }
 
@@ -169,8 +166,10 @@ func (a *Alerter) run(runGroup *sync.WaitGroup) {
 
 		err := a.checkFunc(a.target)
 		if err != nil {
+			logrus.Warn("Server is not OK.")
 			a.sendAlert(err.Error())
 		} else {
+			logrus.Info("Server is OK.")
 			a.sendRecover()
 		}
 	}
@@ -186,11 +185,10 @@ func (a *Alerter) sendAlert(msg string) {
 	} else {
 		alertPivot := a.lastAlert.LastTime.Add(a.conf.AlertIntervalDuration)
 		if alertPivot.After(now) {
-			logrus.Warn("Skip sending alert during alert interval[%v]. (left: %v)", a.conf.AlertIntervalDuration, alertPivot.Sub(now))
+			logrus.Info("Skip sending alert during alert interval[%v]. (left: %v)", a.conf.AlertIntervalDuration, alertPivot.Sub(now))
 			return
 		}
 	}
-	logrus.Info("send alert msg: ", msg)
 	a.alertFunc(msg)
 	a.lastAlert.LastTime = now
 }

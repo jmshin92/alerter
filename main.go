@@ -9,12 +9,20 @@ import (
 	"github.com/jmshin92/alerter/pkgs/mail/factory"
 	"github.com/sirupsen/logrus"
 	"os"
+	"time"
 )
 
 var (
 	ConfPath string
 	Vendors  bool
 )
+
+func init() {
+	customFormatter := new(logrus.TextFormatter)
+	customFormatter.TimestampFormat = "2006-01-02 15:04:05"
+	logrus.SetFormatter(customFormatter)
+	customFormatter.FullTimestamp = true
+}
 
 func main() {
 	flag.BoolVar(&Vendors, "v", false, "list of supported vendors")
@@ -44,7 +52,7 @@ func main() {
 			return err
 		}
 		mail.SetSubject("Server is not OK")
-		mail.SetBody(msg)
+		mail.SetBody(fmt.Sprintf("[%v] Server is not OK!\n%s", time.Now(), msg))
 		return mail.Send()
 	}
 
@@ -55,7 +63,7 @@ func main() {
 			return err
 		}
 		mail.SetSubject("Server recovered")
-		mail.SetBody("Server is OK now")
+		mail.SetBody(fmt.Sprintf("[%v] Server recovered!", time.Now()))
 		return mail.Send()
 	}
 
